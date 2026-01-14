@@ -1,0 +1,360 @@
+//!!!!! forward and backwards cycle separated (Forward–Back 180° Oscillation (Always Returns to Same Place)
+
+#include <Arduino.h>
+#include "BasicStepperDriver.h"
+#include <NewPing.h>
+
+// --- Stepper setup ---
+#define MOTOR_STEPS 6400
+#define MICROSTEPS 1
+#define DIR 6
+#define STEP 7
+#define ENABLE 5
+
+// --- Ultrasonic setup ---
+#define TRIGGER_PIN 12
+#define ECHO_PIN 11
+#define MAX_DISTANCE 200
+
+NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
+BasicStepperDriver stepper(MOTOR_STEPS, DIR, STEP, ENABLE);
+
+// --- Variables ---
+bool forwardDirection = true;  // true = forward, false = backward
+
+void setup() {
+  Serial.begin(9600);
+  Serial.println("Stepper + Ultrasonic System Initialized");
+
+  stepper.setEnableActiveState(HIGH);
+  stepper.disable();
+}
+
+void loop() {
+  int sensor = sonar.ping_cm();
+  int currentRPM = 0;
+
+  // Only move if object within 40 cm
+  if (sensor > 0 && sensor <= 40) {
+    stepper.enable();
+    currentRPM = map(sensor, 0, 40, 100, 20); // closer = faster
+    stepper.setRPM(currentRPM);
+
+    // --- Move forward then back by 180° ---
+    if (forwardDirection) {
+      stepper.rotate(180);     // move forward
+      forwardDirection = false;
+    } else {
+      stepper.rotate(-180);    // move backward
+      forwardDirection = true;
+    }
+
+    stepper.disable(); // optional: turn off between moves
+  } 
+  else {
+    // If out of range, ensure stepper is off
+    stepper.disable();
+  }
+
+  // --- Print live info ---
+  Serial.print("Distance: ");
+  Serial.print(sensor);
+  Serial.print(" cm | RPM: ");
+  Serial.print(currentRPM);
+  Serial.print(" | Direction: ");
+  Serial.println(forwardDirection ? "Forward" : "Backward");
+
+  delay(0); // short pause between cycles
+}
+
+
+
+//### CODE FOR X2 MAGNET AND X1 SENSOR (identical)
+
+//#include <NewPing.h>
+
+#define TRIGGER_PIN 12   // Trigger pin on the ultrasonic sensor
+#define ECHO_PIN 11      // Echo pin on the ultrasonic sensor
+#define MAX_DISTANCE 200 // Maximum distance in cm
+#define SIGNAL_PIN3 3     // Output pin (PWM to electromagnet)
+#define SIGNAL_PIN5 5  
+
+NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
+
+void setup() {
+  pinMode(SIGNAL_PIN3, OUTPUT);
+  pinMode(SIGNAL_PIN5, OUTPUT);
+  Serial.begin(9600); // Start serial monitor
+}
+
+void loop() {
+  int sensor = sonar.ping_cm();  // Get distance in cm
+  int magnetism = 0;             // PWM value for electromagnet
+
+
+
+  // --- PWM control logic ---
+  if (sensor > 0 && sensor <= 10) {
+    // Close range → full strength
+    magnetism = 255;
+  } else if (sensor > 10 && sensor <= 60) {
+    // Medium range → mapped strength
+    magnetism = map(sensor, 10, 60, 200, 50);
+  } else {
+    // Out of range → off
+    magnetism = 0;
+  }
+
+  analogWrite(SIGNAL_PIN3, magnetism);
+  analogWrite(SIGNAL_PIN5, magnetism);
+
+  // --- Sensor reading ---
+  Serial.print("Sensor distance: ");
+  Serial.print(sensor);
+  Serial.print(" cm");
+  Serial.print("    -    ");
+
+  // --- Print PWM value ---
+  Serial.print("Electromagnet PWM: ");
+  Serial.println(magnetism);
+
+  delay(100); // Slight delay for stability
+}
+
+// ### 1st attempt together:
+
+#include <Arduino.h>
+#include "BasicStepperDriver.h"
+#include <NewPing.h>
+
+// --- Stepper setup ---
+#define MOTOR_STEPS 6400
+#define MICROSTEPS 1
+#define DIR 6
+#define STEP 7
+#define ENABLE 5
+
+// --- Ultrasonic setup ---
+#define TRIGGER_PIN1 12
+#define ECHO_PIN1 11
+#define MAX_DISTANCE 200
+
+NewPing sonar(TRIGGER_PIN1, ECHO_PIN1, MAX_DISTANCE);
+BasicStepperDriver stepper(MOTOR_STEPS, DIR, STEP, ENABLE);
+
+// magnet setup
+#define TRIGGER_PIN2 13   // Trigger pin on the ultrasonic sensor
+#define ECHO_PIN2 10      // Echo pin on the ultrasonic sensor
+#define MAX_DISTANCE 200 // Maximum distance in cm
+#define SIGNAL_PIN3 3     // Output pin (PWM to electromagnet)
+#define SIGNAL_PIN9 9  
+
+NewPing sonarM(TRIGGER_PIN2, ECHO_PIN2, MAX_DISTANCE);
+
+// --- Variables ---
+bool forwardDirection = true;  // true = forward, false = backward
+
+void setup() {
+  Serial.begin(9600);
+  Serial.println("Stepper + Ultrasonic System Initialized");
+
+  stepper.setEnableActiveState(HIGH);
+  stepper.disable();
+
+  pinMode(SIGNAL_PIN3, OUTPUT);
+  pinMode(SIGNAL_PIN9, OUTPUT);
+}
+
+void loop() {
+
+//Stepper Motor things
+  int sensorS = sonar.ping_cm();
+  int currentRPM = 0;
+
+  // Only move if object within 40 cm
+  if (sensorS > 0 && sensorS <= 40) {
+    stepper.enable();
+    currentRPM = map(sensorS, 0, 40, 100, 20); // closer = faster
+    stepper.setRPM(currentRPM);
+
+    // --- Move forward then back by 180° ---
+    if (forwardDirection) {
+      stepper.rotate(180);     // move forward
+      forwardDirection = false;
+    } else {
+      stepper.rotate(-180);    // move backward
+      forwardDirection = true;
+    }
+
+    stepper.disable(); // optional: turn off between moves
+  } 
+  else {
+    // If out of range, ensure stepper is off
+    stepper.disable();
+  }
+
+
+
+
+//Magnet things
+  int sensorM = sonarM.ping_cm();  // Get distance in cm
+  int magnetism = 0;             // PWM value for electromagnet
+
+  // --- PWM control logic ---
+  if (sensorM > 0 && sensorM <= 10) {
+    // Close range → full strength
+    magnetism = 255;
+  } else if (sensorM > 10 && sensorM <= 60) {
+    // Medium range → mapped strength
+    magnetism = map(sensorM, 10, 60, 200, 50);
+  } else {
+    // Out of range → off
+    magnetism = 0;
+  }
+
+  analogWrite(SIGNAL_PIN3, magnetism);
+  analogWrite(SIGNAL_PIN9, magnetism);
+
+
+  // --- Print live info ---
+  Serial.print("Distance: ");
+  Serial.print(sensorS);
+  Serial.print(" cm | RPM: ");
+  Serial.print(currentRPM);
+  Serial.print(" | Direction: ");
+  Serial.print(forwardDirection ? "Forward" : "Backward");
+
+    Serial.print("    //\\//\\    ");
+
+    // --- Magnet Sensor reading ---
+  Serial.print("Sensor distance: ");
+  Serial.print(sensorM);
+  Serial.print(" cm");
+  Serial.print("    -    ");
+
+  // --- Print PWM value ---
+  Serial.print("Electromagnet PWM: ");
+  Serial.println(magnetism);
+
+  delay(0); // short pause between cycles
+}
+
+
+#include <Arduino.h>
+#include "BasicStepperDriver.h"
+#include <NewPing.h>
+
+// --- Stepper setup ---
+#define MOTOR_STEPS 6400
+#define MICROSTEPS 1
+#define DIR 6
+#define STEP 7
+#define ENABLE 5
+
+// --- Ultrasonic setup ---
+#define TRIGGER_PIN1 12
+#define ECHO_PIN1 11
+#define MAX_DISTANCE 200
+
+NewPing sonar(TRIGGER_PIN1, ECHO_PIN1, MAX_DISTANCE);
+BasicStepperDriver stepper(MOTOR_STEPS, DIR, STEP, ENABLE);
+
+// magnet setup
+#define TRIGGER_PIN2 13   // Trigger pin on the ultrasonic sensor
+#define ECHO_PIN2 10      // Echo pin on the ultrasonic sensor
+#define MAX_DISTANCE 200 // Maximum distance in cm
+#define SIGNAL_PIN3 3     // Output pin (PWM to electromagnet)
+#define SIGNAL_PIN9 9  
+
+NewPing sonarM(TRIGGER_PIN2, ECHO_PIN2, MAX_DISTANCE);
+
+// --- Variables ---
+bool forwardDirection = true;  // true = forward, false = backward
+
+void setup() {
+  Serial.begin(9600);
+  Serial.println("Stepper + Ultrasonic System Initialized");
+
+  stepper.setEnableActiveState(HIGH);
+  stepper.disable();
+
+  pinMode(SIGNAL_PIN3, OUTPUT);
+  pinMode(SIGNAL_PIN9, OUTPUT);
+}
+
+void loop() {
+
+//Stepper Motor things
+  int sensorS = sonar.ping_cm();
+  int currentRPM = 0;
+
+  // Only move if object within 40 cm
+  if (sensorS > 0 && sensorS <= 40) {
+    stepper.enable();
+    currentRPM = map(sensorS, 0, 40, 100, 20); // closer = faster
+    stepper.setRPM(currentRPM);
+
+    // --- Move forward then back by 180° ---
+    if (forwardDirection) {
+      stepper.rotate(180);     // move forward
+      forwardDirection = false;
+    } else {
+      stepper.rotate(-180);    // move backward
+      forwardDirection = true;
+    }
+
+    stepper.disable(); // optional: turn off between moves
+  } 
+  else {
+    // If out of range, ensure stepper is off
+    stepper.disable();
+  }
+
+
+
+
+//Magnet things
+  int sensorM = sonarM.ping_cm();  // Get distance in cm
+  int magnetism = 0;             // PWM value for electromagnet
+
+  // --- PWM control logic ---
+  if (sensorM > 0 && sensorM <= 10) {
+    // Close range → full strength
+    magnetism = 255;
+  } else if (sensorM > 10 && sensorM <= 60) {
+    // Medium range → mapped strength
+    magnetism = map(sensorM, 10, 60, 230, 50);
+  } else {
+    // Out of range → off
+    magnetism = 0;
+  }
+
+  analogWrite(SIGNAL_PIN3, magnetism);
+  analogWrite(SIGNAL_PIN9, magnetism);
+
+
+  // --- Print live info ---
+  Serial.print("StepperMotorDistance: ");
+  Serial.print(sensorS);
+  Serial.print(" cm | RPM: ");
+  Serial.print(currentRPM);
+  Serial.print(" | Direction: ");
+  Serial.print(forwardDirection ? "Forward" : "Backward");
+
+    Serial.print("    *****    ");
+
+    // --- Magnet Sensor reading ---
+  Serial.print("MagnetSensorDistance: ");
+  Serial.print(sensorM);
+  Serial.print(" cm");
+  Serial.print("    -    ");
+
+  // --- Print PWM value ---
+  Serial.print("Electromagnet PWM: ");
+  Serial.println(magnetism);
+
+  delay(0); // short pause between cycles
+}
+
+
+
